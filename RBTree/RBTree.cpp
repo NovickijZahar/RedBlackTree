@@ -1,19 +1,21 @@
 ﻿#include <iostream>
+#include <string>
+#include <set>
 #include "redblacktree.h"
+
 
 int main()
 {
-    RedBlackTree<int> rb{};
-    rb.insert(1);
-    rb.insert(2);
+    RedBlackTree<int> rb{ 1, 2 };
+    rb.print();
+    std::cout << '\n';
+    rb.remove(1);
     rb.insert(3);
     rb.insert(4);
     rb.insert(5);
-    rb.insert(6);
-    rb.insert(8);
-    rb.insert(9);
-    rb.insert(10);
-    rb.remove(4);
+    rb.remove(3);
+
     rb.print();
+    std::cout << '\n';
     return 0;
 }

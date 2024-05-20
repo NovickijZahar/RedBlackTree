@@ -1,6 +1,5 @@
 #pragma once
 #include "redblacktree.h"
-#include <iostream>
 
 template<typename T>
 RedBlackTree<T>::RedBlackTree()
@@ -9,9 +8,37 @@ RedBlackTree<T>::RedBlackTree()
 }
 
 template<typename T>
+RedBlackTree<T>::RedBlackTree(std::initializer_list<T> list)
+{
+	root = nullptr;
+	for (auto l : list)
+	{
+		insert(l);
+	}
+}
+
+template<typename T>
+RedBlackTree<T>::RedBlackTree(RedBlackTree&& other) noexcept
+{
+	root = other.root;
+	size_ = other.size_;
+	other.root = nullptr;
+	other.size_ = 0;
+}
+
+template<typename T>
+RedBlackTree<T>::RedBlackTree(const RedBlackTree& other)
+{
+	size_ = other.size_;
+	root = copyNode(other.root);
+}
+
+template<typename T>
 RedBlackTree<T>::~RedBlackTree()
 {
-	clear(root);
+	clearNode(root);
+	root = nullptr;
+	size_ = 0;
 }
 
 template<typename T>
@@ -22,13 +49,14 @@ void RedBlackTree<T>::insert(T data)
 		Node<T>* newNode = new Node<T>(data);
 		root = newNode;
 		root->is_black = false;
-		Node<T>* l = new Node<T>(NULL, 1);
-		Node<T>* r = new Node<T>(NULL, 1);
+		Node<T>* l = new Node<T>(T(), 1);
+		Node<T>* r = new Node<T>(T(), 1);
 		l->parent = root;
 		r->parent = root;
 		root->left = l;
 		root->right = r;
 		insert1(newNode);
+		size_ = 1;
 		return;
 	}
 	Node<T>* cur = root;
@@ -41,13 +69,14 @@ void RedBlackTree<T>::insert(T data)
 				cur->left->data = data;
 				cur->left->is_black = false;
 				cur->left->is_leaf = false;
-				Node<T>* l = new Node<T>(NULL, 1);
-				Node<T>* r = new Node<T>(NULL, 1);
+				Node<T>* l = new Node<T>(T(), 1);
+				Node<T>* r = new Node<T>(T(), 1);
 				l->parent = cur->left;
 				r->parent = cur->left;
 				cur->left->left = l;
 				cur->left->right = r;
 				insert1(cur->left);
+				size_++;
 				return;
 			}
 			cur = cur->left;
@@ -59,13 +88,14 @@ void RedBlackTree<T>::insert(T data)
 				cur->right->data = data;
 				cur->right->is_black = false;
 				cur->right->is_leaf = false;
-				Node<T>* l = new Node<T>(NULL, 1);
-				Node<T>* r = new Node<T>(NULL, 1);
+				Node<T>* l = new Node<T>(T(), 1);
+				Node<T>* r = new Node<T>(T(), 1);
 				l->parent = cur->right;
 				r->parent = cur->right;
 				cur->right->left = l;
 				cur->right->right = r;
 				insert1(cur->right);
+				size_++;
 				return;
 			}
 			cur = cur->right;
@@ -74,11 +104,38 @@ void RedBlackTree<T>::insert(T data)
 }
 
 template<typename T>
+template<typename ...Args>
+void RedBlackTree<T>::emplace(Args&&...args)
+{
+	T elem = T(std::forward<Args>(args)...);
+	insert(elem);
+}
+
+template<typename T>
 void RedBlackTree<T>::remove(T value)
 {
 	Node<T>* node = get_node(value);
-	if (node->left->is_leaf or node->right->is_leaf)
+	if (root == node and root->left->is_leaf and root->right->is_leaf)
+	{
+		delete root->left;
+		delete root->right;
+		delete node;
+		root = nullptr;
+		size_ = 0;
+	}
+	else if (root == node and (root->left->is_leaf or root->right->is_leaf))
+	{
+		root = root->left->is_leaf ? root->right : root->left;
+		delete root->parent;
+		root->parent = nullptr;
+		root->is_black = true;
+		size_--;
+	}
+	else if (node->left->is_leaf or node->right->is_leaf)
+	{
 		remove0(node);
+		size_--;
+	}
 	else
 	{
 		Node<T>* cur = node->right;
@@ -93,7 +150,15 @@ void RedBlackTree<T>::remove(T value)
 		node->data = temp1;
 		cur->is_black = temp2;
 		remove0(cur);
+		size_--;
 	}
+}
+
+template<typename T>
+void RedBlackTree<T>::swap(RedBlackTree& other)
+{
+	std::swap(size_, other.size_);
+	std::swap(root, other.root);
 }
 
 template<typename T>
@@ -110,7 +175,14 @@ Node<T>* RedBlackTree<T>::uncle(Node<T>* node)
 template<typename T>
 void RedBlackTree<T>::print()
 {
-	dfs(root);
+	if (size_ == 0)
+		std::cout << "{}";
+	else 
+	{
+		std::cout << "{";
+		dfs(root);
+		std::cout << "\b\b}";
+	}
 }
 
 template<typename T>
@@ -248,24 +320,36 @@ void RedBlackTree<T>::insert5(Node<T>* node)
 }
 
 template<typename T>
+size_t RedBlackTree<T>::size()
+{
+	return size_;
+}
+
+template<typename T>
 void RedBlackTree<T>::dfs(Node<T>* node)
 {
 	if (node != nullptr)
 	{
 		dfs(node->left);
 		if (node->is_leaf == false)
-			std::cout << node->data << ' ';
+			std::cout << node->data << ", ";
 		dfs(node->right);
 	}
 }
 
 template<typename T>
-void RedBlackTree<T>::clear(Node<T>* node)
+bool RedBlackTree<T>::empty()
+{
+	return size_ == 0;
+}
+
+template<typename T>
+void RedBlackTree<T>::clearNode(Node<T>* node)
 {
 	if (node != nullptr)
 	{
-		clear(node->left);
-		clear(node->right);
+		clearNode(node->left);
+		clearNode(node->right);
 		delete node;
 	}
 }
@@ -278,6 +362,14 @@ void RedBlackTree<T>::replace_node(Node<T>* node, Node<T>* newNode)
 		node->parent->left = newNode;
 	else
 		node->parent->right = newNode;
+}
+
+template<typename T>
+void RedBlackTree<T>::clear()
+{
+	clearNode(root);
+	root = nullptr;
+	size_ = 0;
 }
 
 template<typename T>
@@ -299,13 +391,14 @@ Node<T>* RedBlackTree<T>::get_node(T value)
 			return cur;
 		}
 	}
-	return cur;
+	throw "There is no such element";
 }
 
 template<typename T>
 void RedBlackTree<T>::remove0(Node<T>* node)
 {
 	Node<T>* child = node->right->is_leaf ? node->left : node->right;
+	delete (node->right->is_leaf ? node->right : node->left);
 	replace_node(node, child);
 	if (node->is_black)
 	{
@@ -406,4 +499,262 @@ void RedBlackTree<T>::remove6(Node<T>* node)
 		sib->left->is_black = true;
 		rotate_right(node->parent);
 	}
+}
+
+template<typename T>
+Node<T>* RedBlackTree<T>::copyNode(Node<T>* node)
+{
+	if (node == nullptr)
+		return nullptr;
+
+	Node<T>* newNode = new Node<T>(node->data, node->is_leaf);
+	newNode->is_black = node->is_black;
+	newNode->parent = node->parent;
+	newNode->left = copyNode(node->left);
+	newNode->right = copyNode(node->right);
+
+	return newNode;
+}
+
+template<typename T>
+Iterator<T> RedBlackTree<T>::find(T value)
+{
+	Node<T>* cur = root;
+	while (cur != nullptr)
+	{
+		if (value > cur->data)
+		{
+			cur = cur->right;
+		}
+		else if (value < cur->data)
+		{
+			cur = cur->left;
+		}
+		else
+		{
+			return Iterator<T>(cur, root);
+		}
+	}
+	throw "There is no such element";
+}
+
+template<typename T>
+Iterator<T> RedBlackTree<T>::begin()
+{
+	Node<T>* current = root;
+	while (current != nullptr && !current->left->is_leaf)
+		current = current->left;
+	return Iterator<T>(current, root);
+}
+
+template<typename T>
+Iterator<T> RedBlackTree<T>::end()
+{
+	return Iterator<T>(nullptr, root);
+}
+
+template<typename T>
+ReversedIterator<T> RedBlackTree<T>::crbegin()
+{
+	Node<T>* current = root;
+	while (current != nullptr && !current->right->is_leaf)
+		current = current->right;
+	return ReversedIterator<T>(current, root);
+}
+
+template<typename T>
+ReversedIterator<T> RedBlackTree<T>::crend()
+{
+	return ReversedIterator<T>(nullptr, root);
+}
+
+template<typename T>
+Iterator<T>::Iterator(Node<T>* node, Node<T>* nodeRoot)
+{
+	current = node;
+	root = nodeRoot;
+}
+
+template<typename T>
+Iterator<T>& Iterator<T>::operator++()
+{
+	if (current == nullptr)
+		return *this;
+	if (!current->right->is_leaf)
+	{
+		current = current->right;
+		while (!current->left->is_leaf)
+		{
+			current = current->left;
+		}
+	}
+	else
+	{
+		Node<T>* parent = current->parent;
+		while (parent != nullptr and current == parent->right)
+		{
+			current = parent;
+			parent = parent->parent;
+		}
+		current = parent;
+	}
+	return *this;
+}
+
+template<typename T>
+Iterator<T>& Iterator<T>::operator--()
+{
+	if (current == nullptr)
+	{
+		current = root;
+		while (current != nullptr and !current->right->is_leaf)
+			current = current->right;
+	}
+	else if (!current->left->is_leaf)
+	{
+		current = current->left;
+		while (!current->right->is_leaf)
+			current = current->right;
+	}
+	else
+	{
+		Node<T>* parent = current->parent;
+		while (parent != nullptr and current == parent->left)
+		{
+			current = parent;
+			parent = parent->parent;
+		}
+		current = parent;
+	}
+	return *this;
+}
+
+template<typename T>
+Iterator<T>& Iterator<T>::operator++(int)
+{
+	Iterator<T> iter = *this;
+	++(*this);
+	return iter;
+}
+
+template<typename T>
+Iterator<T>& Iterator<T>::operator--(int)
+{
+	Iterator iter = *this;
+	--(*this);
+	return iter;
+}
+
+template<typename T>
+T& Iterator<T>::operator*() const
+{
+	return current->data;
+}
+
+template<typename T>
+bool Iterator<T>::operator==(const Iterator<T>& other) const
+{
+	return current == other.current;
+}
+
+template<typename T>
+bool Iterator<T>::operator!=(const Iterator<T>& other) const
+{
+	return current != other.current;
+}
+
+template<typename T>
+ReversedIterator<T>::ReversedIterator(Node<T>* node, Node<T>* nodeRoot)
+{
+	current = node;
+	root = nodeRoot;
+}
+
+template<typename T>
+ReversedIterator<T>& ReversedIterator<T>::operator++()
+{
+	if (current == nullptr)
+	{
+		current = root;
+		while (current != nullptr and !current->right->is_leaf)
+			current = current->right;
+	}
+	else if (!current->left->is_leaf)
+	{
+		current = current->left;
+		while (!current->right->is_leaf)
+			current = current->right;
+	}
+	else
+	{
+		Node<T>* parent = current->parent;
+		while (parent != nullptr and current == parent->left)
+		{
+			current = parent;
+			parent = parent->parent;
+		}
+		current = parent;
+	}
+	return *this;
+}
+
+template<typename T>
+ReversedIterator<T>& ReversedIterator<T>::operator--()
+{
+	if (current == nullptr)
+		return *this;
+	if (!current->right->is_leaf)
+	{
+		current = current->right;
+		while (!current->left->is_leaf)
+		{
+			current = current->left;
+		}
+	}
+	else
+	{
+		Node<T>* parent = current->parent;
+		while (parent != nullptr and current == parent->right)
+		{
+			current = parent;
+			parent = parent->parent;
+		}
+		current = parent;
+	}
+	return *this;
+}
+
+template<typename T>
+ReversedIterator<T>& ReversedIterator<T>::operator++(int)
+
+{
+	ReversedIterator<T> iter = *this;
+	++(*this);
+	return iter;
+}
+
+template<typename T>
+ReversedIterator<T>& ReversedIterator<T>::operator--(int)
+{
+	ReversedIterator iter = *this;
+	--(*this);
+	return iter;
+}
+
+template<typename T>
+T& ReversedIterator<T>::operator*() const
+{
+	return current->data;
+}
+
+template<typename T>
+bool ReversedIterator<T>::operator == (const ReversedIterator<T>&other) const
+{
+	return current == other.current;
+}
+
+template<typename T>
+bool ReversedIterator<T>::operator!=(const ReversedIterator<T>& other) const
+{
+	return current != other.current;
 }
